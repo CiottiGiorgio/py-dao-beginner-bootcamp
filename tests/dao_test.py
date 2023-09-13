@@ -24,11 +24,14 @@ def dao_client(
         signer=get_localnet_default_account(algod_client),
         template_values={"UPDATABLE": 1, "DELETABLE": 1},
     )
-    client.create()
     return client
 
 
-def test_says_hello(dao_client: ApplicationClient) -> None:
-    result = dao_client.call(dao_contract.hello, name="World")
+def test_deploy(dao_client: ApplicationClient):
+    dao_client.create()
 
-    assert result.return_value == "Hello, World"
+
+def test_get_proposal(dao_client: ApplicationClient):
+    proposal = dao_client.call(dao_contract.get_proposal).return_value
+    assert proposal == "This is a proposal."
+    assert dao_client.get_global_state()["proposal"] == "This is a proposal."

@@ -4,8 +4,7 @@ from algokit_utils import DELETABLE_TEMPLATE_NAME, UPDATABLE_TEMPLATE_NAME
 
 
 class DaoState:
-    # INSERT YOUR CODE HERE
-    ...
+    proposal = beaker.GlobalStateValue(pt.TealType.bytes)
 
 
 app = beaker.Application("dao", state=DaoState())
@@ -29,11 +28,9 @@ def delete() -> pt.Expr:
 
 @app.create
 def create() -> pt.Expr:
-    # INSERT YOUR CODE HERE
-    ...
+    return app.state.proposal.set(pt.Bytes("This is a proposal."))
 
 
 @app.external(read_only=True)
 def get_proposal(*, output: pt.abi.String) -> pt.Expr:
-    # INSERT YOUR CODE HERE
-    ...
+    return output.set(app.state.proposal.get())
