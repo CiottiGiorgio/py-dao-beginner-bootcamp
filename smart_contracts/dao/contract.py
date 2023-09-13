@@ -28,7 +28,7 @@ def delete() -> pt.Expr:
 
 
 @app.create
-def create() -> pt.Expr:
+def create(proposal: pt.abi.String) -> pt.Expr:
     # INSERT YOUR CODE HERE
     ...
 

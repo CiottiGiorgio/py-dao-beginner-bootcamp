@@ -27,8 +27,8 @@ def delete() -> pt.Expr:
 
 
 @app.create
-def create() -> pt.Expr:
-    return app.state.proposal.set(pt.Bytes("This is a proposal."))
+def create(proposal: pt.abi.String) -> pt.Expr:
+    return app.state.proposal.set(proposal.get())
 
 
 @app.external(read_only=True)

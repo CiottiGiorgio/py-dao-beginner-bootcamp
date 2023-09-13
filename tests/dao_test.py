@@ -27,11 +27,14 @@ def dao_client(
     return client
 
 
+PROPOSAL = "This is another proposal."
+
+
 def test_deploy(dao_client: ApplicationClient):
-    dao_client.create()
+    dao_client.create(proposal=PROPOSAL)
 
 
 def test_get_proposal(dao_client: ApplicationClient):
     proposal = dao_client.call(dao_contract.get_proposal).return_value
-    assert proposal == "This is a proposal."
-    assert dao_client.get_global_state()["proposal"] == "This is a proposal."
+    assert proposal == PROPOSAL
+    assert dao_client.get_global_state()["proposal"] == PROPOSAL
