@@ -33,6 +33,18 @@ def create(proposal: pt.abi.String) -> pt.Expr:
     ...
 
 
+@app.external(authorize=beaker.Authorize.only_creator())
+def bootstrap(*, output: pt.abi.Uint64) -> pt.Expr:
+    # INSERT YOUR CODE HERE
+    ...
+
+
+@app.external
+def register(registered_asa: pt.abi.Asset) -> pt.Expr:
+    # INSERT YOUR CODE HERE
+    ...
+
+
 @app.external
 def vote(in_favor: pt.abi.Bool) -> pt.Expr:
     # INSERT YOUR CODE HERE
@@ -41,6 +53,12 @@ def vote(in_favor: pt.abi.Bool) -> pt.Expr:
 
 @app.external(read_only=True)
 def get_proposal(*, output: pt.abi.String) -> pt.Expr:
+    # INSERT YOUR CODE HERE
+    ...
+
+
+@app.external(read_only=True)
+def get_registered_asa(*, output: pt.abi.Uint64) -> pt.Expr:
     # INSERT YOUR CODE HERE
     ...
 
