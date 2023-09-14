@@ -153,7 +153,7 @@ def test_register(
     sp = dao_client.algod_client.suggested_params()
     sp.fee = 3_000
     sp.flat_fee = True
-    dao_client.call(
+    dao_client.opt_in(
         dao_contract.register,
         registered_asa=registered_asa_id,
         transaction_parameters=TransactionParameters(
@@ -201,15 +201,56 @@ def test_vote_and_get_votes(
     assert votes[0] == 1
     assert votes[1] == 1
 
-    dao_client.call(
-        dao_contract.vote,
-        in_favor=False,
-        registered_asa=registered_asa_id,
+    with pytest.raises(algokit_utils.logic_error.LogicError):
+        dao_client.call(
+            dao_contract.vote,
+            in_favor=False,
+            registered_asa=registered_asa_id,
+            transaction_parameters=TransactionParameters(
+                sender=other_account.address,
+                signer=other_account.signer,
+            ),
+        )
+    votes = dao_client.call(dao_contract.get_votes).return_value
+    assert votes[0] == 1
+    assert votes[1] == 1
+
+
+def test_clear_state(
+    dao_client: ApplicationClient, other_account: Account, registered_asa_id: int
+):
+    dao_client.clear_state(
         transaction_parameters=TransactionParameters(
             sender=other_account.address,
             signer=other_account.signer,
-        ),
+        )
     )
+
     votes = dao_client.call(dao_contract.get_votes).return_value
-    assert votes[0] == 2
+    assert votes[0] == 1
     assert votes[1] == 1
+
+    with pytest.raises(algokit_utils.logic_error.LogicError):
+        dao_client.call(
+            dao_contract.vote,
+            in_favor=True,
+            registered_asa=registered_asa_id,
+            transaction_parameters=TransactionParameters(
+                sender=other_account.address,
+                signer=other_account.signer,
+            ),
+        )
+
+    sp = dao_client.algod_client.suggested_params()
+    sp.fee = 3_000
+    sp.flat_fee = True
+    with pytest.raises(algokit_utils.logic_error.LogicError):
+        dao_client.opt_in(
+            dao_contract.register,
+            registered_asa=registered_asa_id,
+            transaction_parameters=TransactionParameters(
+                sender=other_account.address,
+                signer=other_account.signer,
+                suggested_params=sp,
+            ),
+        )

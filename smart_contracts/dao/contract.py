@@ -39,7 +39,7 @@ def bootstrap(*, output: pt.abi.Uint64) -> pt.Expr:
     ...
 
 
-@app.external
+@app.opt_in
 def register(registered_asa: pt.abi.Asset) -> pt.Expr:
     # INSERT YOUR CODE HERE
     ...

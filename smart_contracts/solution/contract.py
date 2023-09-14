@@ -9,6 +9,8 @@ class DaoState:
     votes_total = beaker.GlobalStateValue(pt.TealType.uint64)
     votes_in_favor = beaker.GlobalStateValue(pt.TealType.uint64)
 
+    has_voted = beaker.LocalStateValue(pt.TealType.uint64)
+
 
 app = beaker.Application("dao", state=DaoState())
 
@@ -55,7 +57,7 @@ def bootstrap(*, output: pt.abi.Uint64) -> pt.Expr:
     )
 
 
-@app.external
+@app.opt_in
 def register(registered_asa: pt.abi.Asset) -> pt.Expr:
     return pt.Seq(
         (
@@ -65,6 +67,7 @@ def register(registered_asa: pt.abi.Asset) -> pt.Expr:
         ),
         pt.Assert(asa_balance.hasValue()),
         pt.Assert(asa_balance.value() == pt.Int(0)),
+        app.state.has_voted.set(pt.Int(0)),
         pt.InnerTxnBuilder.Begin(),
         pt.InnerTxnBuilder.SetFields(
             {
@@ -99,6 +102,8 @@ def vote(in_favor: pt.abi.Bool, registered_asa: pt.abi.Asset) -> pt.Expr:
         ),
         pt.Assert(asa_balance.hasValue()),
         pt.Assert(asa_balance.value() == pt.Int(1)),
+        pt.Assert(app.state.has_voted.get() == pt.Int(0)),
+        app.state.has_voted.set(pt.Int(1)),
         app.state.votes_total.set(app.state.votes_total.get() + pt.Int(1)),
         pt.If(in_favor.get()).Then(
             app.state.votes_in_favor.set(app.state.votes_in_favor.get() + pt.Int(1))
