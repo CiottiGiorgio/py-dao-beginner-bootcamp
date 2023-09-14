@@ -7,8 +7,10 @@ from algokit_utils import (
     ApplicationSpecification,
     TransactionParameters,
     get_localnet_default_account,
-    get_or_create_kmd_wallet_account,
+    get_or_create_kmd_wallet_account, OnCompleteCallParameters,
 )
+from algosdk import transaction
+from algosdk.atomic_transaction_composer import AtomicTransactionComposer
 from algosdk.v2client.algod import AlgodClient
 
 from smart_contracts.dao import contract as dao_contract
@@ -47,10 +49,11 @@ def other_account(algod_client: AlgodClient) -> Account:
 
 
 PROPOSAL = "This is another proposal."
+END_VOTING = 16927981910
 
 
 def test_deploy(dao_client: ApplicationClient):
-    dao_client.create(proposal=PROPOSAL)
+    dao_client.create(proposal=PROPOSAL, end_voting=END_VOTING)
 
 
 def test_get_proposal(dao_client: ApplicationClient):
@@ -188,6 +191,21 @@ def test_get_votes_negative(dao_client: ApplicationClient):
 def test_vote_and_get_votes(
     dao_client: ApplicationClient, other_account: Account, registered_asa_id: int
 ):
+    atc = AtomicTransactionComposer()
+    dao_client.compose_call(
+        atc,
+        dao_contract.vote,
+        OnCompleteCallParameters(
+            sender=other_account.address, signer=other_account.signer
+        ),
+        in_favor=True,
+        registered_asa=registered_asa_id,
+    )
+    txns = atc.gather_signatures()
+    dryrun_request = transaction.create_dryrun(dao_client.algod_client, txns, latest_timestamp=END_VOTING)
+    dryrun_response = dao_client.algod_client.dryrun(dryrun_request)
+    assert dryrun_response['txns'][0]['app-call-messages'][1] == 'REJECT'
+
     dao_client.call(
         dao_contract.vote,
         in_favor=True,

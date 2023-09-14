@@ -6,6 +6,7 @@ from algokit_utils import DELETABLE_TEMPLATE_NAME, UPDATABLE_TEMPLATE_NAME
 class DaoState:
     registered_asa_id = beaker.GlobalStateValue(pt.TealType.uint64)
     proposal = beaker.GlobalStateValue(pt.TealType.bytes)
+    end_voting = beaker.GlobalStateValue(pt.TealType.uint64)
     votes_total = beaker.GlobalStateValue(pt.TealType.uint64)
     votes_in_favor = beaker.GlobalStateValue(pt.TealType.uint64)
 
@@ -32,8 +33,11 @@ def delete() -> pt.Expr:
 
 
 @app.create
-def create(proposal: pt.abi.String) -> pt.Expr:
-    return app.state.proposal.set(proposal.get())
+def create(proposal: pt.abi.String, end_voting: pt.abi.Uint64) -> pt.Expr:
+    return pt.Seq(
+        app.state.proposal.set(proposal.get()),
+        app.state.end_voting.set(end_voting.get()),
+    )
 
 
 @app.external(authorize=beaker.Authorize.only_creator())
@@ -61,6 +65,7 @@ def bootstrap(*, output: pt.abi.Uint64) -> pt.Expr:
 @app.opt_in
 def register(registered_asa: pt.abi.Asset) -> pt.Expr:
     return pt.Seq(
+        pt.Assert(pt.Global.latest_timestamp() < app.state.end_voting.get()),
         (
             asa_balance := pt.AssetHolding.balance(
                 pt.Txn.sender(), app.state.registered_asa_id.get()
@@ -138,6 +143,7 @@ def clear_state() -> pt.Expr:
 @app.external
 def vote(in_favor: pt.abi.Bool, registered_asa: pt.abi.Asset) -> pt.Expr:
     return pt.Seq(
+        pt.Assert(pt.Global.latest_timestamp() < app.state.end_voting.get()),
         (
             asa_balance := pt.AssetHolding.balance(
                 pt.Txn.sender(), app.state.registered_asa_id.get()
