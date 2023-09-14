@@ -33,7 +33,24 @@ def create(proposal: pt.abi.String) -> pt.Expr:
     ...
 
 
+@app.external
+def vote(in_favor: pt.abi.Bool) -> pt.Expr:
+    # INSERT YOUR CODE HERE
+    ...
+
+
 @app.external(read_only=True)
 def get_proposal(*, output: pt.abi.String) -> pt.Expr:
+    # INSERT YOUR CODE HERE
+    ...
+
+
+class GetVotesReturn(pt.abi.NamedTuple):
+    # INSERT YOUR CODE HERE
+    ...
+
+
+@app.external(read_only=True)
+def get_votes(*, output: GetVotesReturn) -> pt.Expr:
     # INSERT YOUR CODE HERE
     ...

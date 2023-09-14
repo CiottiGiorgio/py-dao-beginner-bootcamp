@@ -1,3 +1,4 @@
+import algokit_utils.logic_error
 import pytest
 from algokit_utils import (
     ApplicationClient,
@@ -38,3 +39,20 @@ def test_get_proposal(dao_client: ApplicationClient):
     proposal = dao_client.call(dao_contract.get_proposal).return_value
     assert proposal == PROPOSAL
     assert dao_client.get_global_state()["proposal"] == PROPOSAL
+
+
+def test_get_votes_negative(dao_client: ApplicationClient):
+    with pytest.raises(algokit_utils.logic_error.LogicError):
+        dao_client.call(dao_contract.get_votes)
+
+
+def test_vote_and_get_votes(dao_client: ApplicationClient):
+    dao_client.call(dao_contract.vote, in_favor=True)
+    votes = dao_client.call(dao_contract.get_votes).return_value
+    assert votes[0] == 1
+    assert votes[1] == 1
+
+    dao_client.call(dao_contract.vote, in_favor=False)
+    votes = dao_client.call(dao_contract.get_votes).return_value
+    assert votes[0] == 2
+    assert votes[1] == 1
