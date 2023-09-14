@@ -216,6 +216,107 @@ def test_vote_and_get_votes(
     assert votes[1] == 1
 
 
+def test_deregister(
+    dao_client: ApplicationClient,
+    creator_account: Account,
+    other_account: Account,
+    registered_asa_id: int,
+):
+    # This demonstrates that the user is able to close out of the contract.
+    sp = dao_client.algod_client.suggested_params()
+    sp.fee = 2_000
+    sp.flat_fee = True
+    dao_client.close_out(
+        dao_contract.deregister,
+        registered_asa=registered_asa_id,
+        transaction_parameters=TransactionParameters(
+            sender=other_account.address,
+            signer=other_account.signer,
+            suggested_params=sp,
+        ),
+    )
+    votes = dao_client.call(dao_contract.get_votes).return_value
+    assert votes[0] == 0
+    assert votes[1] == 0
+
+    # They are still opted in to the registered ASA with a 0 balance.
+    # Therefore, they are free to opt out of the registered ASA.
+    user_assets = dao_client.algod_client.account_info(other_account.address)["assets"]
+    assert (
+        filter(
+            lambda asset: asset["asset-id"] == registered_asa_id, user_assets
+        ).__next__()["amount"]
+        == 0
+    )
+
+    # Opt out of the Registered ASA.
+    dao_client.algod_client.send_transactions(
+        other_account.signer.sign_transactions(
+            [
+                algosdk.transaction.AssetTransferTxn(
+                    other_account.address,
+                    dao_client.algod_client.suggested_params(),
+                    creator_account.address,
+                    0,
+                    registered_asa_id,
+                    close_assets_to=creator_account.address,
+                )
+            ],
+            [0],
+        )
+    )
+    user_assets = dao_client.algod_client.account_info(other_account.address)["assets"]
+    filtered_assets = filter(
+        lambda asset: asset["asset-id"] == registered_asa_id, user_assets
+    )
+    with pytest.raises(StopIteration):
+        filtered_assets.__next__()
+
+    # We already demonstrated that the user cannot vote if they are not registered.
+
+    # They can register again (must opt in again to registered ASA).
+    dao_client.algod_client.send_transactions(
+        other_account.signer.sign_transactions(
+            [
+                algosdk.transaction.AssetTransferTxn(
+                    other_account.address,
+                    dao_client.algod_client.suggested_params(),
+                    other_account.address,
+                    0,
+                    registered_asa_id,
+                )
+            ],
+            [0],
+        )
+    )
+
+    sp = dao_client.algod_client.suggested_params()
+    sp.fee = 3_000
+    sp.flat_fee = True
+    dao_client.opt_in(
+        dao_contract.register,
+        registered_asa=registered_asa_id,
+        transaction_parameters=TransactionParameters(
+            sender=other_account.address,
+            signer=other_account.signer,
+            suggested_params=sp,
+        ),
+    )
+
+    # They can vote again.
+    dao_client.call(
+        dao_contract.vote,
+        in_favor=False,
+        registered_asa=registered_asa_id,
+        transaction_parameters=TransactionParameters(
+            sender=other_account.address, signer=other_account.signer
+        ),
+    )
+    votes = dao_client.call(dao_contract.get_votes).return_value
+    assert votes[0] == 1
+    assert votes[1] == 0
+
+
 def test_clear_state(
     dao_client: ApplicationClient, other_account: Account, registered_asa_id: int
 ):
@@ -227,8 +328,8 @@ def test_clear_state(
     )
 
     votes = dao_client.call(dao_contract.get_votes).return_value
-    assert votes[0] == 1
-    assert votes[1] == 1
+    assert votes[0] == 0
+    assert votes[1] == 0
 
     with pytest.raises(algokit_utils.logic_error.LogicError):
         dao_client.call(

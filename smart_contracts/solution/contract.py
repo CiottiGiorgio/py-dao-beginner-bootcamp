@@ -9,7 +9,7 @@ class DaoState:
     votes_total = beaker.GlobalStateValue(pt.TealType.uint64)
     votes_in_favor = beaker.GlobalStateValue(pt.TealType.uint64)
 
-    has_voted = beaker.LocalStateValue(pt.TealType.uint64)
+    in_favor = beaker.LocalStateValue(pt.TealType.uint64)
 
 
 app = beaker.Application("dao", state=DaoState())
@@ -48,6 +48,7 @@ def bootstrap(*, output: pt.abi.Uint64) -> pt.Expr:
                 pt.TxnField.config_asset_decimals: pt.Int(0),
                 pt.TxnField.config_asset_default_frozen: pt.Int(0),
                 pt.TxnField.config_asset_freeze: pt.Global.current_application_address(),
+                pt.TxnField.config_asset_clawback: pt.Global.current_application_address(),
                 pt.TxnField.fee: pt.Int(0),
             }
         ),
@@ -67,7 +68,6 @@ def register(registered_asa: pt.abi.Asset) -> pt.Expr:
         ),
         pt.Assert(asa_balance.hasValue()),
         pt.Assert(asa_balance.value() == pt.Int(0)),
-        app.state.has_voted.set(pt.Int(0)),
         pt.InnerTxnBuilder.Begin(),
         pt.InnerTxnBuilder.SetFields(
             {
@@ -92,6 +92,49 @@ def register(registered_asa: pt.abi.Asset) -> pt.Expr:
     )
 
 
+@pt.Subroutine(pt.TealType.none)
+def maybe_remove_vote() -> pt.Expr:
+    return pt.Seq(
+        pt.If(app.state.in_favor.exists()).Then(
+            app.state.votes_total.set(app.state.votes_total.get() - pt.Int(1)),
+            pt.If(app.state.in_favor.get()).Then(
+                app.state.votes_in_favor.set(app.state.votes_in_favor.get() - pt.Int(1))
+            ),
+        )
+    )
+
+
+@app.close_out
+def deregister(registered_asa: pt.abi.Asset) -> pt.Expr:
+    return pt.Seq(
+        (
+            asa_balance := pt.AssetHolding.balance(
+                pt.Txn.sender(), app.state.registered_asa_id.get()
+            )
+        ),
+        pt.Assert(asa_balance.hasValue()),
+        pt.Assert(asa_balance.value() == pt.Int(1)),
+        pt.InnerTxnBuilder.Begin(),
+        pt.InnerTxnBuilder.SetFields(
+            {
+                pt.TxnField.type_enum: pt.TxnType.AssetTransfer,
+                pt.TxnField.xfer_asset: app.state.registered_asa_id.get(),
+                pt.TxnField.asset_sender: pt.Txn.sender(),
+                pt.TxnField.asset_receiver: pt.Global.current_application_address(),
+                pt.TxnField.asset_amount: pt.Int(1),
+                pt.TxnField.fee: pt.Int(0),
+            }
+        ),
+        pt.InnerTxnBuilder.Submit(),
+        maybe_remove_vote(),
+    )
+
+
+@app.clear_state
+def clear_state() -> pt.Expr:
+    return maybe_remove_vote()
+
+
 @app.external
 def vote(in_favor: pt.abi.Bool, registered_asa: pt.abi.Asset) -> pt.Expr:
     return pt.Seq(
@@ -102,8 +145,8 @@ def vote(in_favor: pt.abi.Bool, registered_asa: pt.abi.Asset) -> pt.Expr:
         ),
         pt.Assert(asa_balance.hasValue()),
         pt.Assert(asa_balance.value() == pt.Int(1)),
-        pt.Assert(app.state.has_voted.get() == pt.Int(0)),
-        app.state.has_voted.set(pt.Int(1)),
+        pt.Assert(pt.Not(app.state.in_favor.exists())),
+        app.state.in_favor.set(in_favor.get()),
         app.state.votes_total.set(app.state.votes_total.get() + pt.Int(1)),
         pt.If(in_favor.get()).Then(
             app.state.votes_in_favor.set(app.state.votes_in_favor.get() + pt.Int(1))

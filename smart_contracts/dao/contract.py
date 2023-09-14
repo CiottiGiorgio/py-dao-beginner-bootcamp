@@ -45,6 +45,18 @@ def register(registered_asa: pt.abi.Asset) -> pt.Expr:
     ...
 
 
+@app.close_out
+def deregister(registered_asa: pt.abi.Asset) -> pt.Expr:
+    # INSERT YOUR CODE HERE
+    ...
+
+
+@app.clear_state
+def clear_state() -> pt.Expr:
+    # INSERT YOUR CODE HERE
+    ...
+
+
 @app.external
 def vote(in_favor: pt.abi.Bool) -> pt.Expr:
     # INSERT YOUR CODE HERE
